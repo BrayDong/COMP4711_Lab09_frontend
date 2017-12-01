@@ -2,8 +2,13 @@
 
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+/**
+ * Class Welcome
+ * @property Tasks tasks
+ */
 class Welcome extends Application
 {
+
 
 	/**
 	 * Index Page for this controller.
@@ -23,6 +28,7 @@ class Welcome extends Application
 	    $tasks = $this->tasks->all();
 
 	    $count = 0;
+
 	    foreach(array_reverse($tasks) AS $task) {
 
             $task->priority = $this->app->priority($task->priority);

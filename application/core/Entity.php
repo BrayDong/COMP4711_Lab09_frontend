@@ -21,8 +21,6 @@ class Entity extends CI_Model {
         // and setLastName(...) for $object->last_name =
         $method = 'set' . str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $key)));
 
-
-
         if (method_exists($this, $method)) {
            // echo "calling $method\n";
           //  var_dump($method);

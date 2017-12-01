@@ -2,6 +2,9 @@
 /**
  * Modified to use REST client to get port data from our server.
  */
+//define('REST_SERVER', 'http://backend.local:');  // the REST server host
+//define('REST_PORT', '8080');   // the port you are running the server on
+
 define('REST_SERVER', 'http://backend.local');  // the REST server host
 define('REST_PORT', $_SERVER['SERVER_PORT']);   // the port you are running the server on
 
@@ -23,13 +26,12 @@ function orderByCategory($a, $b) {
 }
 
 
-class Tasks extends XML_Model {
+class Tasks extends CI_Model {
 
-    private $app;
+    private $xml;
     public function __construct()
     {
-        $this -> app = new App();
-        parent::__construct(APPPATH . '../data/tasks.xml', 'id');
+        parent::__construct();
         //print_r($)
     }
 
@@ -68,51 +70,64 @@ class Tasks extends XML_Model {
         return $config;
     }
 
+    public function all(){
+        $data = $this -> load();
+
+            foreach($data as $key => $value){
+                $data[$key] = (object)$value;
+            }
+
+        return $data;
+    }
+
     public function load(){
 
         $this->rest->initialize(array('server' => REST_SERVER));
         $this->rest->option(CURLOPT_PORT, REST_PORT);
-        $this->_data =  $this->rest->get('/job');
+        $this->_data =  $this->rest->get('/Job');
 
-        $this -> reindex();
+        $data = json_decode(json_encode((array)$this->_data), TRUE);
+
+        return $data ;
     }
 
-//    protected function store(){
-//
-//    }
-//
-//    function get($key, $key2 = null){
-//      $this->rest->initialize(array('server' => REST_SERVER));
-//      $this->rest->option(CURLOPT_PORT, REST_PORT);
-//      return $this->rest->get('/job/' . $key);
-//    }
-//
-//    // Delete a record from the DB
-//    function delete($key, $key2 = null)
-//    {
-//        $this->rest->initialize(array('server' => REST_SERVER));
-//        $this->rest->option(CURLOPT_PORT, REST_PORT);
-//        $this->rest->delete('/job/' . $key);
-//        $this->load(); // because the "database" might have changed
-//    }
-//
-//
-//    function update($record)
-//    {
-//          $this->rest->initialize(array('server' => REST_SERVER));
-            //$this->rest->option(CURLOPT_PORT, REST_PORT);
-            //$key = $record->{$this->_keyfield};
-            //$retrieved = $this->rest->put('/job/' . $key, $record);
-            //$this->load(); // because the "database" might have changed
-//    }
-//
-//    // Add a record to the collection
-//    function add($record)
-//    {
-//        $this->rest->initialize(array('server' => REST_SERVER));
-        //$this->rest->option(CURLOPT_PORT, REST_PORT);
-        //$key = $record->{$this->_keyfield};
-        //$retrieved = $this->rest->post('/job/' . $key, $record);
-        //$this->load(); // because the "database" might have changed
-//    }
+    protected function store(){
+
+    }
+
+    function get($key, $key2 = null){
+      $this->rest->initialize(array('server' => REST_SERVER));
+      $this->rest->option(CURLOPT_PORT, REST_PORT);
+
+      return $this->rest->get('/Job/' . $key);
+    }
+
+    // Delete a record from the DB
+    function delete($key, $key2 = null)
+    {
+        $this->rest->initialize(array('server' => REST_SERVER));
+        $this->rest->option(CURLOPT_PORT, REST_PORT);
+        $this->rest->delete('/Job/' . $key);
+        $this->load(); // because the "database" might have changed
+    }
+
+
+    function update($record)
+    {
+        $this->rest->initialize(array('server' => REST_SERVER));
+        $this->rest->option(CURLOPT_PORT, REST_PORT);
+        $key = $record->{$this->_keyfield};
+        $retrieved = $this->rest->put('/Job/' . $key, $record);
+        $this->load(); // because the "database" might have changed
+    }
+
+    // Add a record to the collection
+    function add($record)
+    {
+        $this->rest->initialize(array('server' => REST_SERVER));
+        $this->rest->option(CURLOPT_PORT, REST_PORT);
+        $key = $record->{$this->_keyfield};
+        $retrieved = $this->rest->post('/Job/' . $key, $record);
+        $this->load(); // because the "database" might have changed
+    }
 }
