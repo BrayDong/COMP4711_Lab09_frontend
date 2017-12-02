@@ -28,9 +28,8 @@ function orderByCategory($a, $b) {
 
 class Tasks extends CI_Model {
 
-    protected $_keyfield = "id";
+    protected $_keyfield = 'id';
 
-    private $xml;
     public function __construct()
     {
         parent::__construct();
@@ -109,7 +108,7 @@ class Tasks extends CI_Model {
       $this->rest->initialize(array('server' => REST_SERVER));
       $this->rest->option(CURLOPT_PORT, REST_PORT);
 
-      return $this->rest->get('/Job/' . $key);
+      return $this->rest->get('job/' . $key);
     }
 
     // Delete a record from the DB
@@ -117,19 +116,17 @@ class Tasks extends CI_Model {
     {
         $this->rest->initialize(array('server' => REST_SERVER));
         $this->rest->option(CURLOPT_PORT, REST_PORT);
-        $this->rest->delete('/Job/' . $key);
+        $this->rest->delete('job/' . $key);
         $this->load(); // because the "database" might have changed
     }
 
-
     function update($record)
     {
-        var_dump($record);
         $this->rest->initialize(array('server' => REST_SERVER));
         $this->rest->option(CURLOPT_PORT, REST_PORT);
-        
+
         $key = $record->{$this->_keyfield};
-        $retrieved = $this->rest->put('/Job/' . $key, $record);
+        $retrieved = $this->rest->put('job/' . $key, $record);
         $this->load(); // because the "database" might have changed
     }
 
@@ -139,7 +136,7 @@ class Tasks extends CI_Model {
         $this->rest->initialize(array('server' => REST_SERVER));
         $this->rest->option(CURLOPT_PORT, REST_PORT);
         $key = $record->{$this->_keyfield};
-        $retrieved = $this->rest->post('/Job/' . $key, $record);
+        $retrieved = $this->rest->post('job/' . $key, $record);
         $this->load(); // because the "database" might have changed
     }
 }
