@@ -86,7 +86,7 @@ class Mtce extends Application {
 
     // Build the pagination navbar
     private function pagenav($num) {
-        $lastpage = ceil($this->tasks->size() / $this->items_per_page);
+        $lastpage = ceil(count($this->tasks->all()) / $this->items_per_page);
         $parms = array(
             'first' => 1,
             'previous' => (max($num-1,1)),

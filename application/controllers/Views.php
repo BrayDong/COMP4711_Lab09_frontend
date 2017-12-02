@@ -83,7 +83,7 @@ class Views extends Application{
             if (substr($key,0,4) == 'task') {
 
                 // find the associated task
-                $taskid = substr($key,4);
+                $taskid = substr($key, 4);
                 $task = $this->tasks->get($taskid);
                 $task->status = 2; // complete
 
