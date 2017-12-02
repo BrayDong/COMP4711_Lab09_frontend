@@ -18,9 +18,6 @@ class Task extends Entity{
 
     public function setTask($value){
 
-//        $alNum = preg_replace('/[^a-z0-9 ]/i', '', $value);
-//        if($value != $alNum) return;
-
         if(preg_match('/[^0-9a-zA-Z ]/', $value)
         || strlen($value) > 64)
             return;

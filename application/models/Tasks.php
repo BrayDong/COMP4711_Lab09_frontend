@@ -28,6 +28,8 @@ function orderByCategory($a, $b) {
 
 class Tasks extends CI_Model {
 
+    protected $_keyfield = "id";
+
     private $xml;
     public function __construct()
     {
@@ -82,13 +84,21 @@ class Tasks extends CI_Model {
 
     public function load(){
 
+        // $this->rest->initialize(array('server' => REST_SERVER));
+        // $this->rest->option(CURLOPT_PORT, REST_PORT);
+        // $this->_data =  $this->rest->get('/Job');
+
+        // $data = json_decode(json_encode((array)$this->_data), TRUE);
+        // load our data from the REST backend
         $this->rest->initialize(array('server' => REST_SERVER));
         $this->rest->option(CURLOPT_PORT, REST_PORT);
-        $this->_data =  $this->rest->get('/Job');
+        $this->_data =  $this->rest->get('job');
 
-        $data = json_decode(json_encode((array)$this->_data), TRUE);
+        // rebuild the field names from the first object
+        $one = array_values((array) $this->_data);
+        $this->_fields = array_keys((array)$one[0]);
 
-        return $data ;
+        return $one;
     }
 
     protected function store(){
@@ -114,8 +124,10 @@ class Tasks extends CI_Model {
 
     function update($record)
     {
+        var_dump($record);
         $this->rest->initialize(array('server' => REST_SERVER));
         $this->rest->option(CURLOPT_PORT, REST_PORT);
+        
         $key = $record->{$this->_keyfield};
         $retrieved = $this->rest->put('/Job/' . $key, $record);
         $this->load(); // because the "database" might have changed
