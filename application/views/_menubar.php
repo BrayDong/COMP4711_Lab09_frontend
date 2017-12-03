@@ -2,6 +2,11 @@
 /*
  * Menu navbar, just an unordered list
  */
+
+//require_once(APPPATH."/third_party/logging/common.php");
+
+//logger("TEST");
+
 ?>
 <ul class="nav">
     <ul class="nav">
