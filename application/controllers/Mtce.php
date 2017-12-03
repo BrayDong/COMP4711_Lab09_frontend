@@ -112,6 +112,10 @@ class Mtce extends Application {
         if ($id == null)
             redirect('/mtce');
         $task = $this->tasks->get($id);
+
+        //echo "Saving task to session: \n";
+        //var_dump($task);
+
         $this->session->set_userdata('task', $task);
         $this->showit();
     }
@@ -136,6 +140,8 @@ class Mtce extends Application {
         // if no errors, pass an empty message
         if ( ! isset($this->data['error']))
             $this->data['error'] = '';
+
+        var_dump($task);
 
         $fields = array(
             'ftask'      => form_label('Task description') . form_input('task', $task->task),
@@ -183,11 +189,13 @@ class Mtce extends Application {
         {
             if (empty($task->id))
             {
+
                 $task->id = $this->tasks->highest() + 1;
                 $this->tasks->add($task);
                 $this->alert('Task ' . $task->id . ' added', 'success');
             } else
             {
+
                 $this->tasks->update($task);
                 $this->alert('Task ' . $task->id . ' updated', 'success');
             }

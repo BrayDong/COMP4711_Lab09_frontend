@@ -25,7 +25,11 @@ function orderByCategory($a, $b) {
         return 0;
 }
 
-
+/**
+ * Class Tasks
+ *
+ * @property Rest rest
+ */
 class Tasks extends CI_Model {
 
     protected $_keyfield = 'id';
@@ -81,6 +85,8 @@ class Tasks extends CI_Model {
         return $data;
     }
 
+
+
     public function load(){
 
         // $this->rest->initialize(array('server' => REST_SERVER));
@@ -104,6 +110,25 @@ class Tasks extends CI_Model {
 
     }
 
+    /**
+     * @return int
+     */
+    public function highest() {
+        $all = $this->all();
+
+        $highest = 0;
+
+        foreach($all AS $task) {
+            if($task->{$this->_keyfield} > $highest) {
+                $highest = $task->{$this->_keyfield};
+            }
+        }
+        return $highest;
+
+    }
+
+    // REST stuff
+
     function get($key, $key2 = null){
       $this->rest->initialize(array('server' => REST_SERVER));
       $this->rest->option(CURLOPT_PORT, REST_PORT);
@@ -122,11 +147,24 @@ class Tasks extends CI_Model {
 
     function update($record)
     {
+
+
         $this->rest->initialize(array('server' => REST_SERVER));
         $this->rest->option(CURLOPT_PORT, REST_PORT);
 
         $key = $record->{$this->_keyfield};
+
+
+
         $retrieved = $this->rest->put('job/' . $key, $record);
+
+        Logger::log("Result from rest->put(job/$key, ".json_encode($record).")");
+        Logger::log($retrieved);
+
+//        echo "Result from rest->put(job/$key, ".json_encode($record).")\n<br>----------------<br>\n";
+//        var_dump($retrieved);
+//        echo "--------------\n\n<br>";
+
         $this->load(); // because the "database" might have changed
     }
 
@@ -137,6 +175,9 @@ class Tasks extends CI_Model {
         $this->rest->option(CURLOPT_PORT, REST_PORT);
         $key = $record->{$this->_keyfield};
         $retrieved = $this->rest->post('job/' . $key, $record);
+
+        var_dump($retrieved);
+
         $this->load(); // because the "database" might have changed
     }
 }
