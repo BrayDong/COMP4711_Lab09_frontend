@@ -72,14 +72,12 @@ class Logger {
 
     static function log($msg, $echoToo=null, $asHTML=null) {
         //echo $_SERVER['REMOTE_ADDR'];
-        Global $logging, $auth;
+        Global $logging;
 
-        //print_r($logging);
 
-# 	DO NOT USE PROFILE here.  The Profile class uses logger(), which causes infinite recursion.  Oops!
-# 	Global $profile;
-# 	if( is_object( $profile ) ) $profile->start();
-
+        if(!$logging['enabled']) {
+            return false;
+        }
 
 
         $logfile = "/tmp/webapp.log";
@@ -287,9 +285,6 @@ function getClientHostname($ip, $forceRefresh=false, $returnNull = false) {
     $host = trim(trim(trim(`host "$ip" | awk 'NF>1{print \$NF}'`),'.'));
     if(stripos($host,"not found") === FALSE) {
 
-        if(!empty($host)) {
-            $host = str_ireplace(".devry.local", "", $host);
-        }
 
         if(empty($host) || stripos($host,"NXDOMAIN") !== FALSE
             || stripos($host, "RECORD") !== FALSE) {
@@ -517,269 +512,6 @@ function getFutureDate( $interval, $now=null ) // {{{
     return date( 'Y-m-d', strtotime( "+$interval days", $now ) );
 } // }}}
 
-function getWorkingDays( $dateA, $dateB, $roundUp=false ) // {{{
-{
-    // roundUp		- include both first and last day between the two timestamps.
-    //				- FALSE:   2015-02-10 - 2015-02-12  ===> 2
-    //				- TRUE:    2015-02-10 - 2015-02-12  ===> 3
-
-    Global $profile;
-    $profile->start();
-
-    // Add 1 day to make dates inclusive.
-    $inclusive = ( $roundUp ? 1 : 0 );		// Set to 1 to make inclusive of last day of work
-
-    // Convert to timestamp (if required)
-    if( !is_numeric( $dateA ) ) $dateA = strtotime( $dateA );
-    if( !is_numeric( $dateB ) ) $dateB = strtotime( $dateB );
-
-    // Use start/end in calculations so we can reference dateA and dateB again at the end....
-
-    $start = $dateA;
-    $end = $dateB;
-
-    if( $start > $end ) { $x = $end; $end = $start ; $start = $x; }
-
-    // Calculate total number of days between the two dates.  {{{
-
-    //$days = ceil( ( ( $end - $start ) / ( 24 * 60 * 60 ) ) + $inclusive );
-    $days = date( 'z', $end ) - date( 'z', $start );
-    if( $days < 0 ) $days += 365;
-    $days += $inclusive;
-# 	logger( "days = $days" );
-
-    $fullWeeks = floor( $days / 7 );
-    $remainingDays = fmod( $days, 7 );
-
-    $firstDOW = date( "N", $start );
-    $lastDOW = date( "N", $end );
-
-    if( $firstDOW <= $lastDOW )
-    {
-        if( $firstDOW <= 6  &&  6 <= $lastDOW ) $remainingDays--;
-        if( $firstDOW <= 7  &&  7 <= $lastDOW ) $remainingDays--;
-    }
-    else
-    {
-        if( $firstDOW == 7 )
-        {
-            $remainingDays--;
-            if( $lastDOW == 6 ) $remainingDays--;
-        }
-        else
-        {
-            $remainingDays -= 2;
-        }
-    }
-# 	logger( "remainingDays=$remainingDays" );
-
-    $workingDays = $fullWeeks * 5;
-    if( $remainingDays > 0 ) $workingDays += $remainingDays;
-# 	logger( "workingDays=$workingDays" );
-    // }}}
-
-    // Calculate Holiday days {{{
-
-    // If we're only looking for holidays in one year, then reduce data set returned by getHolidayDates()
-    $year = ( date( "Y", $start ) == date( "Y", $end ) ? date( "Y", $start ) : null );
-    $holidays = getHolidayDates( $year );
-
-    if(		$start  < strtotime( '2011-01-01' )  ||  $start  > strtotime( '2021-12-31' )
-        ||	$end < strtotime( '2011-01-01' )  ||  $end > strtotime( '2021-12-31' )  )
-    {
-        logger( "*************************************************************************************\n\nWARNING from " . __FUNCTION__ . "()\n\nOne of the dates is out of range of the identified holidays.  start=".date('Y-m-d', $start ).", end=".date('Y-m-d', $end )."\n\n****************************************************************************************" );
-    }
-
-    // }}}
-
-    // Now, subtract all the holidays between the two dates {{{
-    foreach( $holidays AS $holiday )
-    {
-        $h = strtotime( $holiday );											// Convert to timestamp
-        if( $h < $start  ||  $h > $end ) continue;							// Ignore holidays that fall outside our range....
-        if( date( "N", $h ) == 6  || date( "N", $h ) == 7 ) continue;		// Ignore holidays that fall on a weekend
-
-        // This holiday is within the specified date-range, so subtract it....
-        $workingDays--;
-    }
-# 	logger( "workingDays=$workingDays" );
-    // }}}
-
-    if( $dateA > $dateB ) $workingDays = $workingDays * -1;		// Convert to negative value if the specified end date occurs before the start date
-    if( $inclusive == 0  && $workingDays < 0 ) $workingDays--;	// Subtract one more day if we're negative - to include the due_date as a working day.
-# 	logger( "workingDays=$workingDays" );
-
-# 	logger( __FUNCTION__ . "():  There are $workingDays working days between " . date( "Y-m-d", $dateA ) . " and " . date( "Y-m-d", $dateB ) );
-    $profile->stop();
-    return $workingDays;
-
-} // }}}
-function getWorkingHours( $tsA, $tsB ) // {{{
-{
-    Global $profile;
-    $profile->start();
-    // Return how many working hours were accumulated between the two timestamps.
-    // Assumes an 8 hour work day, starting at 8:30am and finishing at 5pm, with 30mins for lunch
-    // A starting timestamp before 8:30am is added on as extra time.
-    // A finishing timestamp after 5pm is added on as extra time.
-
-    $verbose = false;
-
-
-    // First, calculate how many whole-day working hours betwen the two timestamps
-    $days = getWorkingDays( $tsA, $tsB, true ) - 2;  if( $days < 0 ) $days = 0;
-    $hours = $days * 8;
-
-    if( $verbose ) logger( "Start Time:  $tsA" );
-    if( $verbose ) logger( "End   Time:  $tsB" );
-    if( $verbose ) logger( "days=$days, whole_day_hours=$hours" );
-
-    // If start/end times are on the same day....
-    if( date( 'Y-m-d', strtotime( $tsA ) ) == date( 'Y-m-d', strtotime( $tsB ) ) )
-    {
-        $hours = round( ( ( strtotime( $tsB ) - strtotime( $tsA ) ) / 60 / 60 ), 1 );
-        if( $verbose ) logger( "DEBUG 1.1: hours=$hours" );
-
-
-        // If start time is before lunch and end time is after lunch, then subtract 30 minutes for lunch....
-        if( date( 'G', strtotime( $tsA ) ) < 12  &&  date( 'G', strtotime( $tsB ) ) > 13 ) $hours -= 0.5;
-        if( $verbose ) logger( "DEBUG 1.2: hours=$hours" );
-    }
-    else
-    {
-        // Add in the hours worked on the first day
-        $x = 0;
-        if( date( 'G', strtotime( $tsA ) ) < 17 ) $x = round( ( ( strtotime( '5pm', strtotime( $tsA ) ) - strtotime( $tsA ) ) / 60 / 60 ) , 1 );
-        if( $verbose ) logger( "DEBUG 2.1: firstDayHours=$x" );
-
-        // If start time is before lunch, then subtract 30 minutes for lunch....
-        if( date( 'G', strtotime( $tsA ) ) < 12 ) $x -= 0.5;
-        if( $verbose ) logger( "DEBUG 2.2: firstDayHours=$x" );
-
-        $hours += $x;
-        if( $verbose ) logger( "DEBUG 2.3: hours=$hours" );
-
-
-        // Add in the hours worked on the last day
-        $x = 0;
-        if( date( 'G', strtotime( $tsB ) ) > 9 ) $x = round( ( ( strtotime( $tsB ) - strtotime( '9am', strtotime( $tsB ) ) ) / 60 / 60 ) , 1 );
-        if( $verbose ) logger( "DEBUG 2.4: lastDayHours=$x" );
-
-        // If finish time is after lunch, then subtract 30 minutes for lunch....
-        if( date( 'G', strtotime( $tsB ) ) > 12 ) $x -= 0.5;
-        if( $verbose ) logger( "DEBUG 2.5: lastDayHours=$x" );
-
-        $hours += $x;
-        if( $verbose ) logger( "DEBUG 2.6: hours=$hours" );
-    }
-
-# 	logger( __FUNCTION__ . "():  There are $hours working hours betwen $tsA and $tsB...." );
-    $profile->stop();
-    return $hours;
-
-} // }}}
-
-function getHolidayDates( $year=null, $country='CAN', $prov='BC' ) // {{{
-{
-    Global $profile;
-    $profile->start();
-
-    // This function is fairly "slow", and can sometimes be called thousands of times during a page-load (on large data-sets)
-    // This allows holidays to only be calculated once per page-load, and kept in memory for each subsequent call.
-    Global $HOLIDAY_DATES;
-    if( !empty( $HOLIDAY_DATES[$year][$country][$prov] ) ) { $profile->stop(); return $HOLIDAY_DATES[$year][$country][$prov]; }
-
-
-    // Return a list of holiday dates (for BC)
-    $holidays = array();
-
-    if( $country != 'CAN'  ||  $prov != 'BC' )
-    {
-        logger( __FUNCTION__ . "( '$year', '$country', '$prov' ):  WARNING!!!!!!!!   Unsupported Country or State/Prov.   Returning empty set." );
-        return $holidays;
-    }
-
-    // Add all the fixed holidays - New Years, Remembrance, Christmas, Boxing
-# 	for( $y=2000;$y<=date('Y')+25;$y++ ) $holidays = array_merge( $holidays, array( "$y-01-01", "$y-11-11", "$y-12-25", "$y-12-26" ) );
-    for( $y=2000;$y<=date('Y')+25;$y++ ) { $holidays[] = "$y-01-01"; $holidays[] = "$y-11-11"; $holidays[] = "$y-12-25"; $holidays[] = "$y-12-26"; }
-
-
-    // The following were derived from http://www.labour.gov.bc.ca/esb/facshts/stats.htm
-    // ... and http://www.statutoryholidays.com/bc.php
-
-    // Add Canada-wide holidays {{{
-    // Good Friday
-# 	$holidays = array_merge( $holidays, array( '2005-03-25', '2006-04-14', '2007-04-06', '2008-03-21', '2009-04-10', '2010-04-02', '2011-04-22', '2012-04-06', '2013-03-29', '2014-04-18', '2015-04-03', '2016-03-25', '2017-04-14', '2018-03-30', '2019-04-19', '2020-04-10', '2021-04-02' ) );
-    foreach( array( '2005-03-25', '2006-04-14', '2007-04-06', '2008-03-21', '2009-04-10', '2010-04-02', '2011-04-22', '2012-04-06', '2013-03-29', '2014-04-18', '2015-04-03', '2016-03-25', '2017-04-14', '2018-03-30', '2019-04-19', '2020-04-10', '2021-04-02' ) AS $d ) $holidays[] = $d;
-
-    // Easter Monday
-# 	$holidays = array_merge( $holidays, array( '2005-03-28', '2006-04-17', '2007-04-09', '2008-03-24', '2009-04-13', '2010-04-05', '2011-04-25', '2012-04-09', '2013-04-01', '2014-04-21', '2015-04-06', '2016-03-28', '2017-04-17', '2018-04-02', '2019-04-22', '2020-04-13', '2021-04-05' ) );
-    foreach( array( '2005-03-28', '2006-04-17', '2007-04-09', '2008-03-24', '2009-04-13', '2010-04-05', '2011-04-25', '2012-04-09', '2013-04-01', '2014-04-21', '2015-04-06', '2016-03-28', '2017-04-17', '2018-04-02', '2019-04-22', '2020-04-13', '2021-04-05' ) AS $d ) $holidays[] = $d;
-
-    // Victoria Day - Monday before May 25
-    for( $y=2000;$y<=date('Y')+25;$y++ ) $holidays[] = date( 'Y-m-d', strtotime( 'last monday', strtotime( "$y-05-25" ) ) );
-
-
-    // Canada Day - July 1 or July 2 (if July 1 is a Sunday)
-    for( $y=2000;$y<=date('Y')+25;$y++ ) { $d = "$y-07-01"; if( date( 'D', strtotime( $d ) ) == 'Sun' ) $d = "$y-07-02"; $holidays[] = $d; }
-
-    // Labour Day - First Monday of Sep
-    for( $y=2000;$y<=date('Y')+25;$y++ ) $holidays[] = getRelativeDate( $y, 'september', 'first monday' );
-
-    // }}}
-
-
-    // Add BC-specific holidays {{{
-
-    // BC Family Day - 2nd Monday of Feb
-    for( $y=2000;$y<=date('Y')+25;$y++ ) $holidays[] = getRelativeDate( $y, 'february', 'second monday' );
-
-    // BC Day - First Monday of Aug
-    for( $y=2000;$y<=date('Y')+25;$y++ ) $holidays[] = getRelativeDate( $y, 'august', 'first monday' );
-
-    // }}}
-
-
-    // If user only wants holidays for a given year, then strip out everything we don't need {{{
-    if( !is_null( $year ) )
-    {
-        $tmp = array();
-        foreach( $holidays AS $day ) if( substr( $day, 0, 4 ) == $year ) $tmp[] = $day;
-        $holidays = $tmp;
-    } // }}}
-
-    // Cache for future iterations
-    $HOLIDAY_DATES[$year][$country][$prov] = $holidays;
-
-    $profile->stop();
-    return $holidays;
-
-} // }}}
-function getRelativeDate( $year, $month, $offset ) // {{{
-{
-    // This is used by getHolidayDates() above to calculate things like...
-    // Thanksgiving is the 2nd Monday in October, so... to get Thanksgiving for a given year...
-    // $date = getRelativeDate( '2025', 'october', 'second monday' );
-
-    return date( 'Y-m-d', strtotime( "$month $year $offset", strtotime( "jan 1 $year" ) ) );
-} // }}}
-
-function isWorkingDay( $date, $country='CAN', $prov='BC' ) // {{{
-{
-    // Return TRUE if the given date falls on a non-Stat-holiday week-day
-
-    $date = date( "Y-m-d", strtotime( $date ) );
-
-    if( date( "D", strtotime( $date ) ) == "Sat" ) return false;
-    if( date( "D", strtotime( $date ) ) == "Sun" ) return false;
-
-    $holidays = getHolidayDates( substr( $date, 0, 4 ), $country, $prov );
-    if( in_array( $date, $holidays ) ) return false;
-
-    return true;
-
-} // }}}
-
 function getAdjustedETAStr( $in ) // {{{
 {
 # 	logger( __FUNCTION__ . "( $in ):  datestamp=" . date( "Y-m-d H:i:s", $in ) . " returns " . getAgeStr( $in ) );
@@ -824,26 +556,6 @@ function getWeekStartStop( $year, $week ) // {{{
 # 	logger( $info );
     return $info;
 
-} // }}}
-
-function getLastFridayOfMonth( $year, $month, $excludeHolidays=true ) // {{{
-{
-    // Returns the last Friday of the given month in the format "YYYY-MM-DD"
-    // if excludeHolidays==TRUE and last Friday is a holiday, then return the Thursday (or Wed or...)
-
-    // Get "next month"
-    $month++; if( $month > 12 ) { $month = 1; $year++; }
-
-    // Back off to last day of previous month...
-    $date = date( "Y-m-d", strtotime( "yesterday", strtotime( "$year-$month-01" ) ) );
-
-    // While not a Friday...
-    while( date( "D", strtotime( $date ) ) != "Fri" ) $date = date( "Y-m-d", strtotime( "yesterday", strtotime( $date ) ) );
-
-    // While a holiday...
-    if( $excludeHolidays ) while( !isWorkingDay( $date ) ) $date = date( "Y-m-d", strtotime( "yesterday", strtotime( $date ) ) );
-
-    return $date;
 } // }}}
 
 function getMonths( $m=null ) // {{{
@@ -2224,12 +1936,12 @@ function isVPNIP($ip = null) // {{{
 
     $ip_bytes = explode(".",$ip);
 
-    // If no NAT (devry)
+    // If no NAT
     if(	$ip_bytes[0] == 10 &&
         $ip_bytes[1] == 99 &&
         $ip_bytes[2] == 0) return true;
 
-    // If behind VPN NAT (devry)
+    // If behind VPN NAT
     if( $ip_bytes[0] == 10 &&
         $ip_bytes[1] == 0  &&
         $ip_bytes[2] == 1  &&
