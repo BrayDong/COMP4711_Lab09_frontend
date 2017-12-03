@@ -101,6 +101,7 @@ class Mtce extends Application {
     // Initiate adding a new task
     public function add()
     {
+
         $task = $this->tasks->create();
         $this->session->set_userdata('task', $task);
         $this->showit();
@@ -141,7 +142,7 @@ class Mtce extends Application {
         if ( ! isset($this->data['error']))
             $this->data['error'] = '';
 
-        var_dump($task);
+        //var_dump($task);
 
         $fields = array(
             'ftask'      => form_label('Task description') . form_input('task', $task->task),
