@@ -102,8 +102,24 @@ class Mtce extends Application {
     public function add()
     {
 
-        $task = $this->tasks->create();
-        $this->session->set_userdata('task', $task);
+        //$task = $this->tasks->create();
+
+        $obj = new StdClass();
+
+        $id = $this->tasks->highest() + 1;
+
+        $obj->id = $id;
+        $obj->task="";
+        $obj->priority="";
+        $obj->size="";
+        $obj->group="";
+        $obj->status="";
+//
+        $task = $this->tasks->add($obj);
+//
+//        var_dump($task);
+
+        $this->session->set_userdata('task',$obj);
         $this->showit();
     }
 
