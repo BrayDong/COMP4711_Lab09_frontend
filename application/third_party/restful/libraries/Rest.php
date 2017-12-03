@@ -108,6 +108,11 @@ class Rest {
     }
 
     protected function _call($method, $uri, $params = array(), $format = NULL) {
+
+        /** @var $curl Curl */
+
+        $curl = $this->_ci->curl;
+
         if ($format !== NULL) {
             $this->format($format);
         }
@@ -115,21 +120,25 @@ class Rest {
         $this->http_header('Accept', $this->mime_type);
 
         // Initialize cURL session
-        $this->_ci->curl->create($this->rest_server . $uri);
+        $curl->create($this->rest_server . $uri);
 
         // If authentication is enabled use it
         if ($this->http_auth != '' && $this->http_user != '') {
-            $this->_ci->curl->http_login($this->http_user, $this->http_pass, $this->http_auth);
+            $curl->http_login($this->http_user, $this->http_pass, $this->http_auth);
         }
 
         // We still want the response even if there is an error code over 400
-        $this->_ci->curl->option('failonerror', FALSE);
+        $curl->option('failonerror', FALSE);
+
+        Logger::log("curl->$method(\$params)");
+        Logger::log("params: ");
+        Logger::log($params);
 
         // Call the correct method with parameters
-        $this->_ci->curl->{$method}($params);
+        $curl->{$method}($params);
 
         // Execute and return the response from the REST server
-        $response = $this->_ci->curl->execute();
+        $response = $curl->execute();
 
         // Format and return
         return $this->_format_response($response);
