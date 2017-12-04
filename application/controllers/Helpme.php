@@ -13,19 +13,7 @@ class Helpme extends Application
 {
     public function index() {
         $this->data['pagetitle'] = 'Help Wanted!';
-        $stuff = file_get_contents('../data/jobs.md');
-
-
-
-
-        // $htmlstuff = $this->parsedown->parse($stuff);
-
-        //$this->data['content'] = $this->parser->parseString($htmlstuff,$parameters,true);
-
-
-        //$mdstuff = $this->parser->parseString($stuff,$parameters,true);
-
-        $this->data['content'] = $this->parsedown->parse($stuff);
+        $this->data['content'] = '<p>help</p>';
         $this->render();
     }
 }

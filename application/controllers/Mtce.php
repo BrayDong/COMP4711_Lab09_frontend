@@ -152,6 +152,7 @@ class Mtce extends Application {
     {
         $this->load->helper('form');
         $task = $this->session->userdata('task');
+        
         $this->data['id'] = $task->id;
 
         // if no errors, pass an empty message

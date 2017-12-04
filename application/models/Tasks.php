@@ -106,10 +106,6 @@ class Tasks extends CI_Model {
         return $one;
     }
 
-    protected function store(){
-
-    }
-
     /**
      * @return int
      */
@@ -175,9 +171,6 @@ class Tasks extends CI_Model {
         $this->rest->option(CURLOPT_PORT, REST_PORT);
         $key = $record->{$this->_keyfield};
         $retrieved = $this->rest->post('job/' . $key, $record);
-
-        var_dump($retrieved);
-
         $this->load(); // because the "database" might have changed
     }
 }
